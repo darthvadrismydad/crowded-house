@@ -1,0 +1,27 @@
+{
+  "name": "crowded-house",
+  "version": "0.0.1",
+  "module": "src/app.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/app.ts",
+    "start": "bun src/app.ts",
+    "register": "bun commands.ts",
+    "build": "bun build --outdir=dist src/index.ts",
+    "bundle": "zip -r crowded.zip Dockerfile bun.lockb package.json src/ tsconfig.json .env"
+  },
+  "devDependencies": {
+    "bun-types": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@types/express": "^4.17.17",
+    "discord-interactions": "^3.4.0",
+    "dotenv": "^16.3.1",
+    "esm": "^3.2.25",
+    "express": "^4.18.2",
+    "openai": "^3.3.0"
+  }
+}

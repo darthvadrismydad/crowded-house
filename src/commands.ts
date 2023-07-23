@@ -1,5 +1,3 @@
-import { InstallGlobalCommands } from './utils';
-
 export enum CommandType {
   Test = "test",
   Prompt = "prompt",

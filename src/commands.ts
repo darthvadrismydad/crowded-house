@@ -33,8 +33,3 @@ export const Commands = new Map<CommandType, any>()
       type: 1
     }
   );
-
-
-const FormattedCommands = Array.from(Commands.entries()).map(([name, value]) => ({ name, ...value }));
-InstallGlobalCommands(process.env.APP_ID!, FormattedCommands);
-

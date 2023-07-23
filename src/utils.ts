@@ -1,4 +1,5 @@
 import { verifyKey } from 'discord-interactions';
+import { Commands } from './commands';
 
 export function VerifyDiscordRequest(clientKey: string) {
   return function(req: any, res: any, buf: any, encoding: any) {
@@ -32,7 +33,9 @@ export async function DiscordRequest(endpoint: string, options: any) {
   return res;
 }
 
-export async function InstallGlobalCommands(appId: string, commands: any[]) {
+export async function InstallGlobalCommands() {
+  const appId = process.env.APP_ID!;
+  const commands = Array.from(Commands.entries()).map(([name, value]) => ({ name, ...value }));
   // API endpoint to overwrite global commands
   const endpoint = `applications/${appId}/commands`;
 

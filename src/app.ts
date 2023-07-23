@@ -26,11 +26,10 @@ app.post('/interactions', async function(req, res) {
       const { name } = data;
       switch (name.toLowerCase()) {
         case CommandType.Test:
-          const msg = (await GetChannelMessages(channel.id))[0].content;
           return res.send({
             type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
             data: {
-              content: JSON.stringify(msg)
+              content: "testing"
             }
           });
         case CommandType.Prompt:

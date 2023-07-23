@@ -1,25 +1,40 @@
 import { InstallGlobalCommands } from './utils';
 
-// Simple test command
-const TEST_COMMAND = {
-  name: 'test',
-  description: 'Basic command',
-  type: 1,
-};
-
-const PROMPT_COMMAND = {
-  name: 'prompt',
-  description: 'move the story onwards',
-  type: 1,
-  options: [
-    {
-      name: 'text',
-      type: 3,
-      description: 'text to prompt with',
-    }
-  ]
+export enum CommandType {
+  Test = "test",
+  Prompt = "prompt",
+  Continue = "continue"
 }
 
-const ALL_COMMANDS = [TEST_COMMAND, PROMPT_COMMAND];
+export const Commands = new Map<CommandType, any>()
+  .set(
+    CommandType.Test,
+    {
+      description: 'Basic command',
+      type: 1
+    }
+  )
+  .set(CommandType.Prompt,
+    {
+      description: 'move the story onwards',
+      type: 1,
+      options: [
+        {
+          name: 'text',
+          type: 3,
+          description: 'text to prompt with',
+        }
+      ]
+    }
+  )
+  .set(CommandType.Continue,
+    {
+      description: 'continue the story',
+      type: 1
+    }
+  );
 
-InstallGlobalCommands(process.env.APP_ID!, ALL_COMMANDS);
+
+const FormattedCommands = Array.from(Commands.entries()).map(([name, value]) => ({ name, ...value }));
+InstallGlobalCommands(process.env.APP_ID!, FormattedCommands);
+

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "bun --watch src/app.ts",
     "start": "bun src/app.ts",
-    "register": "bun commands.ts",
+    "register": "bun src/commands.ts",
     "build": "bun build --outdir=dist src/index.ts",
     "bundle": "zip -r crowded.zip Dockerfile bun.lockb package.json src/ tsconfig.json .env"
   },

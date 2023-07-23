@@ -3,6 +3,7 @@ import express from 'express';
 import { InteractionType, InteractionResponseType, } from 'discord-interactions';
 import { CreateFollowupMessage, GetChannelMessages, VerifyDiscordRequest } from './utils';
 import { Configuration, OpenAIApi } from 'openai';
+import { CommandType } from './commands';
 
 const app = express();
 const bot = new OpenAIApi(new Configuration({
@@ -24,7 +25,7 @@ app.post('/interactions', async function(req, res) {
     case InteractionType.APPLICATION_COMMAND:
       const { name } = data;
       switch (name.toLowerCase()) {
-        case 'test':
+        case CommandType.Test:
           const msg = (await GetChannelMessages(channel.id))[0].content;
           return res.send({
             type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -32,7 +33,7 @@ app.post('/interactions', async function(req, res) {
               content: JSON.stringify(msg)
             }
           });
-        case 'prompt':
+        case CommandType.Prompt:
           const text = data.options[0]?.value;
 
           res.send({
@@ -55,6 +56,26 @@ app.post('/interactions', async function(req, res) {
             .then(r => r.data?.choices[0]?.message?.content as string)
             .then((msg: string) => CreateFollowupMessage(process.env.APP_ID!, token, msg));
 
+        case CommandType.Continue:
+          res.send({
+            type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
+          });
+
+          // actual response
+          GetChannelMessages(channel.id)
+            .then(m => m.map((msg: any) => msg.content).join(" "))
+            .then((storySoFar) => bot.createChatCompletion({
+              model: 'gpt-3.5-turbo',
+              messages: [
+                { content: 'you are narrating a story which involves multiple 1st person perspectives. always use the third person.', role: 'system' },
+                { content: storySoFar, role: 'assistant' },
+                { content: 'continue', role: 'user' }
+              ],
+              max_tokens: 256,
+              user: data.name
+            }))
+            .then(r => r.data?.choices[0]?.message?.content as string)
+            .then((msg: string) => CreateFollowupMessage(process.env.APP_ID!, token, msg));
         default:
           break;
       }

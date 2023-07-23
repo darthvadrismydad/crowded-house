@@ -36,6 +36,8 @@ export async function InstallGlobalCommands(appId: string, commands: any[]) {
   // API endpoint to overwrite global commands
   const endpoint = `applications/${appId}/commands`;
 
+  console.log(commands);
+
   try {
     await DiscordRequest(endpoint, { method: 'PUT', body: commands });
   } catch (err) {

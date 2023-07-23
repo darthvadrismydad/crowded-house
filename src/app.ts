@@ -76,6 +76,12 @@ app.post('/interactions', async function(req, res) {
             .then(r => r.data?.choices[0]?.message?.content as string)
             .then((msg: string) => CreateFollowupMessage(process.env.APP_ID!, token, msg));
         default:
+          res.send({
+            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+            data: {
+              content: `Unknown command ${name}`
+            }
+          });
           break;
       }
     default:

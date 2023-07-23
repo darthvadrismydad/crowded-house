@@ -5,7 +5,6 @@ COPY bun.lockb bun.lockb
 COPY tsconfig.json tsconfig.json
 RUN bun install
 COPY src/ src/
-COPY .env .env
 
 EXPOSE 80
 

@@ -37,7 +37,7 @@ export function getCharacter(name: string, channelId: string): (c: Client) => Pr
   return async c => c
     .prepare(`
       SELECT * FROM characters
-      WHERE name = $1
+      WHERE LOWER(name) = LOWER($1)
       AND channel_id = $2
     `)
     .then(p => p.execute([name, channelId]).one())

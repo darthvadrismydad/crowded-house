@@ -78,7 +78,7 @@ app.post('/interactions', async function(req, res) {
           });
 
           return psql()
-            .then(getCharacter(data.options[0]?.value, channel.id))
+            .then(getCharacter(data.options[0]?.value.toLowerCase(), channel.id))
             .then((c) =>
               generateCompletion(
                 data.options[1]?.value,

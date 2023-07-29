@@ -49,7 +49,17 @@ export async function InstallGlobalCommands() {
 }
 
 export async function GetChannelMessages(channelId: string): Promise<any> {
-  const endpoint = `channels/${channelId}/messages?limit=100`;
+  const endpoint = `channels/${channelId}/messages?limit=30`;
+  try {
+    const res = await DiscordRequest(endpoint, { method: 'GET' });
+    return await res.json();
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+export async function GetChannel(channelId: string): Promise<any> {
+  const endpoint = `channels/${channelId}`;
   try {
     const res = await DiscordRequest(endpoint, { method: 'GET' });
     return await res.json();
@@ -68,11 +78,3 @@ export async function CreateFollowupMessage(appId: string, interactionToken: str
   }
 }
 
-export function getRandomEmoji() {
-  const emojiList = ['😭', '😄', '😌', '🤓', '😎', '😤', '🤖', '😶‍🌫️', '🌏', '📸', '💿', '👋', '🌊', '✨'];
-  return emojiList[Math.floor(Math.random() * emojiList.length)];
-}
-
-export function capitalize(str: string) {
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}

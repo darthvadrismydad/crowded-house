@@ -118,13 +118,13 @@ async function generateCompletion(prompt: string, channelId: string, name: strin
   const msgs: any[] = await GetChannelMessages(channelId);
 
   let story = '';
-  let i = msgs.length - 1;
+  let i = 0;
   // only keeping the most recent 2000 characters
-  while (story.length < 2000 && i >= 0) {
+  while (story.length < 2000 && i < msgs.length) {
     // the most recent messages are the last in the array,
     // so we need to order them in reverse and also stack em in reverse
     story = msgs[i].content + ' ' + story;
-    i--;
+    i++;
   }
 
   const msg: CreateChatCompletionRequest = {

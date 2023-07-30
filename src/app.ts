@@ -22,7 +22,8 @@ app.get('/', async function(_, res) {
 
 // actual discord things
 app.post('/interactions', async function(req, res) {
-  const { type, data, channel, token, user } = req.body;
+  const { type, data, channel, token, member } = req.body;
+  const { user } = member;
 
   switch (type) {
     case InteractionType.PING:

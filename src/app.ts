@@ -22,8 +22,8 @@ app.get('/', async function(_, res) {
 
 // actual discord things
 app.post('/interactions', async function(req, res) {
-  const { type, data, channel, token, member } = req.body;
-  const { user } = member;
+  const { type, data, channel, token } = req.body;
+  const user = req.body?.member?.user?.username ?? 'anon';
 
   switch (type) {
     case InteractionType.PING:
@@ -52,7 +52,7 @@ app.post('/interactions', async function(req, res) {
             .then(getDirective(channel.id))
             .catch(() => DEFAULT_SYS_MSG);
 
-          return generateCompletion(text, channel.id, user.username, token, await directive);
+          return generateCompletion(text, channel.id, user, token, await directive);
 
 
         case CommandType.SpawnCharacter:
@@ -69,7 +69,7 @@ app.post('/interactions', async function(req, res) {
               CreateFollowupMessage(
                 process.env.APP_ID!,
                 token,
-                `${user.username} has brought ${data.options[0]?.value} into the chat`
+                `${user} has brought ${data.options[0]?.value} into the chat`
               )
             );
 
@@ -84,7 +84,7 @@ app.post('/interactions', async function(req, res) {
               generateCompletion(
                 data.options[1]?.value,
                 channel.id,
-                user.username,
+                user,
                 token,
                 `You will reply as the character ${c.name}, who is represented by this JSON: ${JSON.stringify(c.state)}`)
             );

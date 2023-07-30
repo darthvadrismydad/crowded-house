@@ -120,7 +120,7 @@ async function generateCompletion(prompt: string, channelId: string, name: strin
   let story = '';
   let i = msgs.length - 1;
   // only keeping the most recent 2000 characters
-  while (story.length < 2000) {
+  while (story.length < 2000 && i >= 0) {
     story += msgs[i].content + ' ';
     i--;
   }
@@ -135,7 +135,7 @@ async function generateCompletion(prompt: string, channelId: string, name: strin
       },
       { content: prompt, role: 'user', name: name }
     ],
-    // TODO: use threads to keep adding to the story over time?
+    // TODO(luke): use threads to keep adding to the story over time?
     max_tokens: 256,
     user: name
   };

@@ -27,10 +27,10 @@ export async function init() {
 }
 
 export function createCharacter(name: string, channelId: string, state: any): (c: Client) => Promise<any> {
-  return async c => c.query(`
+  return async c => c.prepare(`
     INSERT INTO characters (name, channel_id, state)
-    VALUES ('${name}', '${channelId}', '${JSON.stringify(state)}');
-  `);
+    VALUES ('$1', '$2', '$3');
+  `).then(p => p.execute([name, channelId, JSON.stringify(state)]));
 }
 
 export function getCharacter(name: string, channelId: string): (c: Client) => Promise<Character> {
@@ -58,4 +58,24 @@ export function updateCharacter(id: number, state: any): (c: Client) => Promise<
         WHERE id = '$2'
       `)
     .then(p => p.execute([state, id]));
+}
+
+export function getDirective(channelId: string): (c: Client) => Promise<string> {
+  return async c => c
+    .prepare(`
+      SELECT * 
+      FROM directives
+      WHERE channel_id = $1
+    `)
+    .then(p => p.execute([channelId]).one())
+    .then(res => res.get('directive')!.toString());
+}
+
+export function createDirective(channelId: string, directive: string): (c: Client) => Promise<any> {
+  return async c => c
+    .prepare(`
+      INSERT INTO directives (channel_id, directive)
+      VALUES ($1, $2)
+    `)
+    .then(p => p.execute([channelId, directive]));
 }

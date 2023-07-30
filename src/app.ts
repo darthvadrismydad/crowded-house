@@ -1,16 +1,15 @@
 import 'dotenv/config';
 import express from 'express';
 import { InteractionType, InteractionResponseType, } from 'discord-interactions';
-import { CreateFollowupMessage, GetChannel, GetChannelMessages, VerifyDiscordRequest } from './utils';
+import { CreateFollowupMessage, GetChannelMessages, VerifyDiscordRequest } from './utils';
 import { Configuration, CreateChatCompletionRequest, OpenAIApi } from 'openai';
 import { CommandType } from './commands';
-import { createCharacter, getCharacter, psql } from './db';
+import { createCharacter, createDirective, getCharacter, getDirective, psql } from './db';
 
 const app = express();
 const bot = new OpenAIApi(new Configuration({
   apiKey: process.env.OPENAI_API_KEY!
 }));
-
 
 const PORT = process.env.PORT || 80;
 const DEFAULT_SYS_MSG = 'you are narrating a story which involves multiple 1st person perspectives. always use the third person.';
@@ -39,20 +38,21 @@ app.post('/interactions', async function(req, res) {
             }
           });
         case CommandType.Prompt:
-          const text = data.options[0]?.value;
-
-          res.send({
-            type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
-          });
-
-          return generateCompletion(text, channel.id, data.name, token, DEFAULT_SYS_MSG, true);
-
         case CommandType.Continue:
+          // if its a prompt, there is a single option provided.
+          // otherwise, we just want to say 'continue'
+          const text = data.options ? data.options[0]?.value : 'continue';
+
           res.send({
             type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
           });
 
-          return generateCompletion('continue', channel.id, data.name, token, DEFAULT_SYS_MSG, true);
+          const directive = psql()
+            .then(getDirective(channel.id))
+            .catch(() => DEFAULT_SYS_MSG);
+
+          return generateCompletion(text, channel.id, data.name, token, await directive);
+
 
         case CommandType.SpawnCharacter:
           res.send({
@@ -68,7 +68,7 @@ app.post('/interactions', async function(req, res) {
               CreateFollowupMessage(
                 process.env.APP_ID!,
                 token,
-                `you have brought the character ${data.options[0]?.value} into the world`
+                `${name} has brought ${data.options[0]?.value} into the chat`
               )
             );
 
@@ -85,10 +85,16 @@ app.post('/interactions', async function(req, res) {
                 channel.id,
                 data.name,
                 token,
-                `You are now the character ${c.name}.
-                 Here are some details about them in JSON format: ${JSON.stringify(c.state)}
-              `, false)
+                `You will reply as the character ${c.name}, who is represented by this JSON: ${JSON.stringify(c.state)}`)
             );
+        case CommandType.CreateDirective:
+          res.send({
+            type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
+          });
+
+          return psql()
+            .then(createDirective(channel.id, data.options[0]?.value))
+            .then(() => CreateFollowupMessage(process.env.APP_ID!, token, `Created a new directive`));
 
         default:
           res.status(400).send({
@@ -107,21 +113,24 @@ app.post('/interactions', async function(req, res) {
 });
 
 
-async function generateCompletion(prompt: string, channelId: string, name: string, token: string, systemMsg: string, includeContext: boolean): Promise<any> {
+async function generateCompletion(prompt: string, channelId: string, name: string, token: string, systemMsg: string): Promise<any> {
+
+  const sm = await GetChannelMessages(channelId);
+
   const msg: CreateChatCompletionRequest = {
     model: 'gpt-3.5-turbo',
     messages: [
       { content: systemMsg, role: 'system' },
+      {
+        content: 'this is the story that has occurred so far: [' +
+          sm.map((msg: any) => msg.content).join(" ") + ']',
+        role: 'system'
+      },
+      { content: prompt, role: 'user', name: name }
     ],
     max_tokens: 256,
     user: name
   };
-
-  if (includeContext) {
-    const sm = await GetChannelMessages(channelId);
-    msg.messages.push({ content: sm.map((msg: any) => msg.content).join(" "), role: 'assistant' });
-  }
-  msg.messages.push({ content: prompt, role: 'user' });
 
   return bot.createChatCompletion(msg)
     .then(r => r.data?.choices[0]?.message?.content as string)

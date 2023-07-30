@@ -3,7 +3,8 @@ export enum CommandType {
   Prompt = "prompt",
   Continue = "continue",
   SpawnCharacter = "spawnc",
-  Ask = "ask"
+  Ask = "ask",
+  CreateDirective = 'direct'
 }
 
 export const Commands = new Map<CommandType, any>()
@@ -76,6 +77,20 @@ export const Commands = new Map<CommandType, any>()
           require: true,
           description: 'the question to ask',
           type: 3,
+        }
+      ]
+    }
+  )
+  .set(CommandType.CreateDirective,
+    {
+      description: 'create a new directive',
+      type: 1,
+      options: [
+        {
+          name: 'directive',
+          type: 3,
+          description: 'the directive to create',
+          require: true
         }
       ]
     }

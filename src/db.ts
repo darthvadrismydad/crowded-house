@@ -50,6 +50,16 @@ export function getCharacter(name: string, channelId: string): (c: Client) => Pr
     } as Character));
 }
 
+export function listCharacters(channelId: string): (c: Client) => Promise<string[]> {
+  return async c => c
+    .prepare(`
+      SELECT name FROM characters
+      WHERE channel_id = $1
+    `)
+    .then(p => p.execute([channelId]))
+    .then((res) => res.rows.filter(r => r.length > 0).map(r => r[0]!.toString()))
+}
+
 export function updateCharacter(id: number, state: any): (c: Client) => Promise<any> {
   return async c => c
     .prepare(`

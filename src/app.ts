@@ -3,8 +3,8 @@ import express from 'express';
 import { InteractionType, InteractionResponseType, } from 'discord-interactions';
 import { CreateFollowupMessage, GetChannelMessages, VerifyDiscordRequest } from './utils';
 import { Configuration, CreateChatCompletionRequest, OpenAIApi } from 'openai';
-import { CommandType } from './commands';
-import { createCharacter, createDirective, getCharacter, getDirective, psql } from './db';
+import { CommandType, NpcCommands } from './commands';
+import { createCharacter, createDirective, getCharacter, getDirective, listCharacters, psql } from './db';
 
 const app = express();
 const bot = new OpenAIApi(new Configuration({
@@ -54,40 +54,66 @@ app.post('/interactions', async function(req, res) {
 
           return generateCompletion(text, channel.id, user, token, await directive);
 
+        case CommandType.Npcs:
+          const subdata = data.options[0];
+          switch (subdata.name) {
+            case NpcCommands.Create:
+              res.send({
+                type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
+              });
 
-        case CommandType.SpawnCharacter:
-          res.send({
-            type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
-          });
+              return psql()
+                .then(createCharacter(subdata.options[0]?.value, channel.id, {
+                  traits: subdata.options[1]?.value,
+                  backstory: subdata.options[2]?.value
+                }))
+                .then(() =>
+                  CreateFollowupMessage(
+                    process.env.APP_ID!,
+                    token,
+                    `${user} has brought ${subdata.options[0]?.value} into the chat`
+                  )
+                );
 
-          return psql()
-            .then(createCharacter(data.options[0]?.value, channel.id, {
-              traits: data.options[1]?.value,
-              backstory: data.options[2]?.value
-            }))
-            .then(() =>
-              CreateFollowupMessage(
-                process.env.APP_ID!,
-                token,
-                `${user} has brought ${data.options[0]?.value} into the chat`
-              )
-            );
+            case NpcCommands.Ask:
+              res.send({
+                type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
+              });
 
-        case CommandType.Ask:
-          res.send({
-            type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
-          });
+              return psql()
+                .then(async client => {
+                  const npc = await getCharacter(subdata.options[0]?.value.toLowerCase(), channel.id)(client);
+                  const others = await listCharacters(channel.id)(client);
+                  return { npc, others };
+                })
+                .then(({ npc, others }) =>
+                  generateCompletion(
+                    subdata.options[1]?.value,
+                    channel.id,
+                    user,
+                    token,
+                    `The reply format is [NAME]: [REPLY]. 
+                     You will reply as the character ${npc.name}, who is represented by this JSON: ${JSON.stringify(npc.state)}. 
+                     The other characters in this channel are: ${others}`)
+                );
 
-          return psql()
-            .then(getCharacter(data.options[0]?.value.toLowerCase(), channel.id))
-            .then((c) =>
-              generateCompletion(
-                data.options[1]?.value,
-                channel.id,
-                user,
-                token,
-                `You will reply as the character ${c.name}, who is represented by this JSON: ${JSON.stringify(c.state)}`)
-            );
+            case NpcCommands.List:
+              res.send({
+                type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
+              });
+
+              return psql()
+                .then(listCharacters(channel.id))
+                .then((c) =>
+                  CreateFollowupMessage(
+                    process.env.APP_ID!,
+                    token,
+                    `Here are the characters in this channel: \n${c.join("\n")}`
+                  )
+                );
+            default: break;
+          };
+
         case CommandType.CreateDirective:
           res.send({
             type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
@@ -98,10 +124,10 @@ app.post('/interactions', async function(req, res) {
             .then(() => CreateFollowupMessage(process.env.APP_ID!, token, `Created a new directive`));
 
         default:
-          res.status(400).send({
+          res.status(200).send({
             type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
             data: {
-              content: `Unknown command ${name}`
+              content: `Unknown command ${JSON.stringify(data)}`
             }
           });
           break;

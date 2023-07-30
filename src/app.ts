@@ -118,11 +118,11 @@ async function generateCompletion(prompt: string, channelId: string, name: strin
   const msgs: any[] = await GetChannelMessages(channelId);
 
   let story = '';
-  let i = msgs.length - 1;
+  let i = 0;
   // only keeping the most recent 2000 characters
-  while (story.length < 2000 && i >= 0) {
+  while (story.length < 2000 && i < msgs.length) {
     story += msgs[i].content + ' ';
-    i--;
+    i++;
   }
 
   const msg: CreateChatCompletionRequest = {

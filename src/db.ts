@@ -29,7 +29,7 @@ export async function init() {
 export function createCharacter(name: string, channelId: string, state: any): (c: Client) => Promise<any> {
   return async c => c.prepare(`
     INSERT INTO characters (name, channel_id, state)
-    VALUES ('$1', '$2', '$3');
+    VALUES ($1, $2, $3);
   `).then(p => p.execute([name, channelId, JSON.stringify(state)]));
 }
 
@@ -54,8 +54,8 @@ export function updateCharacter(id: number, state: any): (c: Client) => Promise<
   return async c => c
     .prepare(`
         UPDATE characters
-        SET state = '$1'
-        WHERE id = '$2'
+        SET state = $1
+        WHERE id = $2
       `)
     .then(p => p.execute([state, id]));
 }

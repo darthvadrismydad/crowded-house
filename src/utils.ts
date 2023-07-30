@@ -49,7 +49,7 @@ export async function InstallGlobalCommands() {
 }
 
 export async function GetChannelMessages(channelId: string): Promise<any> {
-  const endpoint = `channels/${channelId}/messages?limit=30`;
+  const endpoint = `channels/${channelId}/messages?limit=100`;
   try {
     const res = await DiscordRequest(endpoint, { method: 'GET' });
     return await res.json();

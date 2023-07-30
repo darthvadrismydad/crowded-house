@@ -115,19 +115,27 @@ app.post('/interactions', async function(req, res) {
 
 async function generateCompletion(prompt: string, channelId: string, name: string, token: string, systemMsg: string): Promise<any> {
 
-  const sm = await GetChannelMessages(channelId);
+  const msgs: any[] = await GetChannelMessages(channelId);
+
+  let story = '';
+  let i = msgs.length - 1;
+  // only keeping the most recent 2000 characters
+  while (story.length < 2000) {
+    story += msgs[i].content + ' ';
+    i--;
+  }
 
   const msg: CreateChatCompletionRequest = {
     model: 'gpt-3.5-turbo',
     messages: [
       { content: systemMsg, role: 'system' },
       {
-        content: 'this is the story that has occurred so far: [' +
-          sm.map((msg: any) => msg.content).join(" ") + ']',
+        content: 'this is the story that has occurred so far: [' + story + ']',
         role: 'system'
       },
       { content: prompt, role: 'user', name: name }
     ],
+    // TODO: use threads to keep adding to the story over time?
     max_tokens: 256,
     user: name
   };

@@ -38,13 +38,11 @@ app.post('/interactions', async function(req, res) {
               case NpcCommands.Ask:
                 const characters = await psql()
                   .then(listCharacters(channel.id))
-                  .then(c => c.map(c => ({ name: c.name, value: c.name })))
                   .catch(() => [{ name: 'failed', value: 'F' }]);
-                console.log(characters);
                 return res.send({
                   type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
                   data: {
-                    choices: characters.map(c => ({ name: c, value: c }))
+                    choices: characters.map(({ name }) => ({ name, value: name }))
                   }
                 });
             }

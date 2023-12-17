@@ -38,6 +38,7 @@ app.post('/interactions', async function(req, res) {
               case NpcCommands.Ask:
                 const characters = await psql()
                   .then(listCharacters(channel.id))
+                  .then(c => c.map(c => ({ name: c.name, value: c.name })))
                   .catch(() => [{ name: 'failed', value: 'F' }]);
                 console.log(characters);
                 return res.send({

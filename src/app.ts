@@ -32,7 +32,7 @@ app.post('/interactions', async function(req, res) {
       const { name } = data;
       switch (name.toLowerCase()) {
         case CommandType.Test:
-          return res.send({
+          return res.end({
             type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
             data: {
               content: "testing"
@@ -44,7 +44,7 @@ app.post('/interactions', async function(req, res) {
           // otherwise, we just want to say 'continue'
           const text = data.options ? data.options[0]?.value : 'continue';
 
-          res.send({
+          res.end({
             type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
           });
 
@@ -58,7 +58,7 @@ app.post('/interactions', async function(req, res) {
           const subdata = data.options[0];
           switch (subdata.name) {
             case NpcCommands.Create:
-              res.send({
+              res.end({
                 type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
               });
 
@@ -76,7 +76,7 @@ app.post('/interactions', async function(req, res) {
                 );
 
             case NpcCommands.Ask:
-              res.send({
+              res.end({
                 type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
               });
 
@@ -98,7 +98,7 @@ app.post('/interactions', async function(req, res) {
                 );
 
             case NpcCommands.List:
-              res.send({
+              res.end({
                 type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
               });
 
@@ -116,7 +116,7 @@ app.post('/interactions', async function(req, res) {
           break;
 
         case CommandType.CreateDirective:
-          res.send({
+          res.end({
             type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
           });
 
@@ -125,7 +125,7 @@ app.post('/interactions', async function(req, res) {
             .then(() => CreateFollowupMessage(process.env.APP_ID!, token, `Created a new directive`));
 
         default:
-          res.status(200).send({
+          res.status(200).end({
             type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
             data: {
               content: `Unknown command ${JSON.stringify(data)}`
@@ -137,7 +137,7 @@ app.post('/interactions', async function(req, res) {
       break;
   }
 
-  return res.sendStatus(404).send('Unknown interaction type');
+  return res.sendStatus(404).send('Unknown interaction type').end();
 });
 
 

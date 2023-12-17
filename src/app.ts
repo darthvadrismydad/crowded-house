@@ -113,6 +113,7 @@ app.post('/interactions', async function(req, res) {
                 );
             default: break;
           };
+          break;
 
         case CommandType.CreateDirective:
           res.send({

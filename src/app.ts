@@ -24,120 +24,159 @@ app.get('/', async function(_, res) {
 app.post('/interactions', async function(req, res) {
   const { type, data, channel, token } = req.body;
   const user = req.body?.member?.user?.username ?? 'anon';
+  console.log('got interaction', type, data, channel, token, user);
 
-  switch (type) {
-    case InteractionType.PING:
-      return res.send({ type: InteractionResponseType.PONG });
-    case InteractionType.APPLICATION_COMMAND:
-      const { name } = data;
-      switch (name.toLowerCase()) {
-        case CommandType.Test:
-          return res.end({
-            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: {
-              content: "testing"
+  try {
+    switch (type) {
+      case InteractionType.PING:
+        return res.send({ type: InteractionResponseType.PONG });
+      case InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE:
+        switch (data.name.toLowerCase()) {
+          case CommandType.Npcs:
+            const subdata = data.options[0];
+            switch (subdata.name) {
+              case NpcCommands.Ask:
+                const characters = await psql()
+                  .then(listCharacters(channel.id))
+                  .catch(() => [{ name: 'failed', value: 'F' }]);
+                console.log(characters);
+                return res.send({
+                  type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
+                  data: {
+                    choices: characters.map(c => ({ name: c, value: c }))
+                  }
+                });
             }
-          });
-        case CommandType.Prompt:
-        case CommandType.Continue:
-          // if its a prompt, there is a single option provided.
-          // otherwise, we just want to say 'continue'
-          const text = data.options ? data.options[0]?.value : 'continue';
+            return res.send({
+              type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
+              data: {
+                choices: [{
+                  name: 'test',
+                  value: 'test'
+                }]
+              }
+            });
+        }
+      case InteractionType.APPLICATION_COMMAND:
+        const { name } = data;
+        switch (name.toLowerCase()) {
+          case CommandType.Test:
+            return res.send({
+              type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+              data: {
+                content: "testing"
+              }
+            });
+          case CommandType.Prompt:
+          case CommandType.Continue:
+            // if its a prompt, there is a single option provided.
+            // otherwise, we just want to say 'continue'
+            const text = data.options ? data.options[0]?.value : 'continue';
 
-          res.end({
-            type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
-          });
+            res.send({
+              type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
+            });
 
-          const directive = psql()
-            .then(getDirective(channel.id))
-            .catch(() => DEFAULT_SYS_MSG);
+            const directive = await psql()
+              .then(getDirective(channel.id))
+              .catch(() => DEFAULT_SYS_MSG);
 
-          return generateCompletion(text, channel.id, user, token, await directive);
+            const characters = await psql().then(listCharacters(channel.id));
 
-        case CommandType.Npcs:
-          const subdata = data.options[0];
-          switch (subdata.name) {
-            case NpcCommands.Create:
-              res.end({
-                type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
-              });
+            return generateCompletion(
+              text, 
+              channel.id, 
+              user, 
+              token, 
+              directive + '\n' + characters.map(c => `The character ${c.name} is represented by this JSON: ${JSON.stringify(c.state)}`).join('\n'));
 
-              return psql()
-                .then(createCharacter(subdata.options[0]?.value, channel.id, {
-                  traits: subdata.options[1]?.value,
-                  backstory: subdata.options[2]?.value
-                }))
-                .then(() =>
-                  CreateFollowupMessage(
-                    process.env.APP_ID!,
-                    token,
-                    `${user} has brought ${subdata.options[0]?.value} into the chat`
-                  )
-                );
+          case CommandType.Npcs:
+            const subdata = data.options[0];
+            switch (subdata.name) {
+              case NpcCommands.Create:
+                res.send({
+                  type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
+                });
 
-            case NpcCommands.Ask:
-              res.end({
-                type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
-              });
+                return psql()
+                  .then(createCharacter(subdata.options[0]?.value, channel.id, {
+                    traits: subdata.options[1]?.value,
+                    backstory: subdata.options[2]?.value
+                  }))
+                  .then(() =>
+                    CreateFollowupMessage(
+                      process.env.APP_ID!,
+                      token,
+                      `${user} has brought ${subdata.options[0]?.value} into the chat`
+                    )
+                  );
 
-              return psql()
-                .then(async client => {
-                  const npc = await getCharacter(subdata.options[0]?.value.toLowerCase(), channel.id)(client);
-                  const others = await listCharacters(channel.id)(client);
-                  return { npc, others };
-                })
-                .then(({ npc, others }) =>
-                  generateCompletion(
-                    subdata.options[1]?.value,
-                    channel.id,
-                    user,
-                    token,
-                    `The reply format is [NAME]: [REPLY]. 
+              case NpcCommands.Ask:
+                res.send({
+                  type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
+                });
+
+                return psql()
+                  .then(async client => {
+                    const npc = await getCharacter(subdata.options[0]?.value, channel.id)(client);
+                    const others = await listCharacters(channel.id)(client);
+                    return { npc, others };
+                  })
+                  .then(({ npc, others }) =>
+                    generateCompletion(
+                      subdata.options[1]?.value,
+                      channel.id,
+                      user,
+                      token,
+                      `The reply format is [NAME]: [REPLY]. 
                      You will reply as the character ${npc.name}, who is represented by this JSON: ${JSON.stringify(npc.state)}. 
                      The other characters in this channel are: ${others}`)
-                );
+                  );
 
-            case NpcCommands.List:
-              res.end({
-                type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
-              });
+              case NpcCommands.List:
+                res.send({
+                  type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
+                });
 
-              return psql()
-                .then(listCharacters(channel.id))
-                .then((c) =>
-                  CreateFollowupMessage(
-                    process.env.APP_ID!,
-                    token,
-                    `Here are the characters in this channel: \n${c.join("\n")}`
-                  )
-                );
-            default: break;
-          };
-          break;
+                return psql()
+                  .then(listCharacters(channel.id))
+                  .then((c) =>
+                    CreateFollowupMessage(
+                      process.env.APP_ID!,
+                      token,
+                      `Here are the characters in this channel: \n${c.join("\n")}`
+                    )
+                  );
+              default: break;
+            };
 
-        case CommandType.CreateDirective:
-          res.end({
-            type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
-          });
+          case CommandType.CreateDirective:
+            res.send({
+              type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
+            });
 
-          return psql()
-            .then(createDirective(channel.id, data.options[0]?.value))
-            .then(() => CreateFollowupMessage(process.env.APP_ID!, token, `Created a new directive`));
+            return psql()
+              .then(createDirective(channel.id, data.options[0]?.value))
+              .then(() => CreateFollowupMessage(process.env.APP_ID!, token, `Created a new directive`));
 
-        default:
-          res.status(200).end({
-            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: {
-              content: `Unknown command ${JSON.stringify(data)}`
-            }
-          });
-          break;
-      }
-    default:
-      break;
+          default:
+            res.status(200).send({
+              type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+              data: {
+                content: `Unknown command ${JSON.stringify(data)}`
+              }
+            });
+            break;
+        }
+      default:
+        break;
+    }
+
+    return res.sendStatus(404).send('Unknown interaction type');
+  } catch (err) {
+    console.error(err);
+    return res.sendStatus(500);
   }
-
-  return res.sendStatus(404).send('Unknown interaction type').end();
 });
 
 
@@ -156,14 +195,14 @@ async function generateCompletion(prompt: string, channelId: string, name: strin
   }
 
   const msg: CreateChatCompletionRequest = {
-    model: 'gpt-3.5-turbo',
+    model: 'gpt-3.5-turbo-16k',
     messages: [
       { content: systemMsg, role: 'system' },
       {
         content: 'this is the story that has occurred so far: [' + story + ']',
         role: 'system'
       },
-      { content: prompt, role: 'user', name: name }
+      { content: prompt, role: 'user', name: name.replaceAll('.', '') }
     ],
     // TODO(luke): use threads to keep adding to the story over time?
     max_tokens: 256,

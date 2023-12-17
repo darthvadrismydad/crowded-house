@@ -28,7 +28,7 @@ export const Commands = new Map<CommandType, any>()
     CommandType.Test,
     {
       description: 'Basic command',
-      type: ApplicationCommandTypes.ChatInput
+      type: ApplicationCommandTypes.ChatInput,
     }
   )
   .set(CommandType.Prompt,
@@ -60,7 +60,7 @@ export const Commands = new Map<CommandType, any>()
           name: 'directive',
           type: MessageComponentTypes.STRING_SELECT,
           description: 'the directive to create',
-          required: true
+          required: true,
         }
       ]
     }
@@ -79,7 +79,7 @@ export const Commands = new Map<CommandType, any>()
               description: 'the npc to ask',
               required: true,
               type: MessageComponentTypes.STRING_SELECT,
-
+              autocomplete: true
             },
             {
               name: 'question',

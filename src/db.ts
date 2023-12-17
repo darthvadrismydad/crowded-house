@@ -1,4 +1,4 @@
-import { Client, DataType } from 'ts-postgres';
+import { Client } from 'ts-postgres';
 
 export interface Character {
   id: number;
@@ -42,22 +42,22 @@ export function getCharacter(name: string, channelId: string): (c: Client) => Pr
     `)
     .then(p => p.execute([name, channelId]).one())
     .then((res) => ({
-      id: res.get('id')!,
-      name: res.get('name')!,
-      channelId: res.get('channel_id')!,
-      createdAt: res.get('created_at')!,
-      state: JSON.parse(res.get('state')!.toString())
+      id: res.id,
+      name: res.name,
+      channelId: res.channel_id,
+      createdAt: res.created_at,
+      state: JSON.parse(res.state?.toString())
     } as Character));
 }
 
-export function listCharacters(channelId: string): (c: Client) => Promise<string[]> {
+export function listCharacters(channelId: string): (c: Client) => Promise<Character[]> {
   return async c => c
     .prepare(`
-      SELECT name FROM characters
+      SELECT * FROM characters
       WHERE channel_id = $1
     `)
     .then(p => p.execute([channelId]))
-    .then((res) => res.rows.filter(r => r.length > 0).map(r => r[0]!.toString()))
+    .then((res) => res.rows.map(r => r.reify() as Character))
 }
 
 export function updateCharacter(id: number, state: any): (c: Client) => Promise<any> {
@@ -77,8 +77,8 @@ export function getDirective(channelId: string): (c: Client) => Promise<string> 
       FROM directives
       WHERE channel_id = $1
     `)
-    .then(p => p.execute([channelId]).one())
-    .then(res => res.get('directive')!.toString());
+    .then(p => p.execute([channelId]))
+    .then(res => res.rows.map(_ =>_.get('directive')).join('\n'));
 }
 
 export function createDirective(channelId: string, directive: string): (c: Client) => Promise<any> {

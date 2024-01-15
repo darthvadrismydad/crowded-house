@@ -4,7 +4,7 @@
   "module": "src/app.ts",
   "type": "module",
   "scripts": {
-    "dev": "bun --watch src/app.ts",
+    "dev": "PGDATABASE=postgres bun --watch src/app.ts",
     "expose": "ngrok http 80",
     "start": "bun src/app.ts",
     "register": "bun src/register.ts",
@@ -18,11 +18,9 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@types/express": "^4.17.17",
     "discord-interactions": "^3.4.0",
     "dotenv": "^16.3.1",
     "esm": "^3.2.25",
-    "express": "^4.18.2",
     "openai": "^3.3.0",
     "ts-postgres": "^1.3.1"
   }

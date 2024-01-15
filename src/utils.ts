@@ -2,14 +2,11 @@ import { verifyKey } from 'discord-interactions';
 import { Commands } from './commands';
 
 export function VerifyDiscordRequest(clientKey: string) {
-  return function(req: any, res: any, buf: any, encoding: any) {
-    const signature = req.get('X-Signature-Ed25519');
-    const timestamp = req.get('X-Signature-Timestamp');
+  return function(req: Request, buf: string) {
+    const signature = req.headers.get('X-Signature-Ed25519');
+    const timestamp = req.headers.get('X-Signature-Timestamp');
 
-    const isValidRequest = verifyKey(buf, signature, timestamp, clientKey);
-    if (!isValidRequest) {
-      res.status(401).send('Bad request signature');
-    }
+    return verifyKey(buf, signature!, timestamp!, clientKey);
   };
 }
 

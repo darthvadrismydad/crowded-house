@@ -1,232 +1,186 @@
 import 'dotenv/config';
-import express from 'express';
-import { InteractionType, InteractionResponseType, } from 'discord-interactions';
+import { InteractionType, InteractionResponseType } from 'discord-interactions';
 import { CreateFollowupMessage, VerifyDiscordRequest } from './utils';
-import { Configuration, CreateChatCompletionRequest, OpenAIApi } from 'openai';
+import { Configuration, OpenAIApi } from 'openai';
 import { CommandType, NpcCommands } from './commands';
 import { psql } from './db';
-import characterData, { Character } from './db/character';
+import characterData from './db/character';
 import directiveData from './db/directive';
-import memoryData from './db/memories';
-
-const app = express();
-const bot = new OpenAIApi(new Configuration({
-  apiKey: process.env.OPENAI_API_KEY!
-}));
+import Bun from 'bun';
+import { generateCompletion } from './generate';
 
 const PORT = process.env.PORT || 80;
-const DEFAULT_SYS_MSG = 'you are narrating a story which involves multiple 1st person perspectives. always use the third person.';
-app.use(express.json({ verify: VerifyDiscordRequest(process.env.PUBLIC_KEY!) }));
 
-// health check
-app.get('/', async function(_, res) {
-  res.status(200).end();
+const verify = VerifyDiscordRequest(process.env.PUBLIC_KEY!);
+const reply = (obj: Record<string, any> | null, status?: number) => new Response(JSON.stringify(obj), { 
+  status,
+  headers: {
+    'Content-Type': 'application/json'
+  }
 });
 
-// actual discord things
-app.post('/interactions', async function(req, res) {
-  const { type, data, channel, token } = req.body;
-  const user = req.body?.member?.user?.username ?? 'anon';
-  console.log('got interaction', JSON.stringify(req.body));
+const server = Bun.serve({
+  port: PORT,
+  async fetch(req) {
+    const url = new URL(req.url);
 
-  try {
-    switch (type) {
-      case InteractionType.PING:
-        console.log('sending PONG');
-        return res.send({ type: InteractionResponseType.PONG });
-      case InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE:
-        switch (data.name.toLowerCase()) {
-          case CommandType.Npcs:
-            const subdata = data.options[0];
-            switch (subdata.name) {
-              case NpcCommands.Ask:
-                const characters = await psql()
-                  .then(characterData.list(channel.id));
+    if (url.pathname === '/') {
+      return new Response();
+    } else if (url.pathname === '/interactions') {
 
-                return res.send({
+      const body = await req.text();
+
+      if (!verify(req, body)) {
+        return new Response('Bad request signature', { status: 401 });
+      }
+
+      const { member, type, data, channel, token } = JSON.parse(body);
+      const user = member?.user?.username ?? 'anon';
+      const db = await psql();
+
+      try {
+        switch (type) {
+          case InteractionType.PING:
+            return reply(({ type: InteractionResponseType.PONG }));
+          case InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE:
+            switch (data.name.toLowerCase()) {
+              case CommandType.Npcs:
+                const subdata = data.options[0];
+                switch (subdata.name) {
+                  case NpcCommands.Ask:
+                    const characters = await psql()
+                      .then(characterData.list(channel.id));
+
+                    return reply({
+                      type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
+                      data: {
+                        choices: characters.map(({ name, id }) => ({ name, value: id }))
+                      }
+                    });
+                }
+                return reply({
                   type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
                   data: {
-                    choices: characters.map(({ name, id }) => ({ name, value: id }))
+                    choices: [{
+                      name: 'test',
+                      value: 'test'
+                    }]
                   }
                 });
             }
-            return res.send({
-              type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
-              data: {
-                choices: [{
-                  name: 'test',
-                  value: 'test'
-                }]
-              }
-            });
-        }
-      case InteractionType.APPLICATION_COMMAND:
-        const { name } = data;
-        switch (name.toLowerCase()) {
-          case CommandType.Test:
-            return res.send({
-              type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: {
-                content: "testing"
-              }
-            });
-          case CommandType.Prompt:
-          case CommandType.Continue:
-            // if its a prompt, there is a single option provided.
-            // otherwise, we just want to say 'continue'
-            const text = data.options ? data.options[0]?.value : 'continue';
+          case InteractionType.APPLICATION_COMMAND:
+            const { name } = data;
+            switch (name.toLowerCase()) {
+              case CommandType.Test:
+                return reply({
+                  type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+                  data: {
+                    content: "testing"
+                  }
+                });
+              case CommandType.Prompt:
+              case CommandType.Continue:
+                // if its a prompt, there is a single option provided.
+                // otherwise, we just want to say 'continue'
+                const text = data.options ? data.options[0]?.value : 'continue';
 
-            res.send({
-              type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
-            });
+                generateCompletion(
+                  db,
+                  text,
+                  channel.id,
+                  name,
+                  token
+                );
 
-            const character = await psql().then(characterData.getByName(user, channel.id));
-
-            return generateCompletion(
-              text,
-              channel.id,
-              character,
-              token
-            );
-
-          case CommandType.Npcs:
-            const subdata = data.options[0];
-            switch (subdata.name) {
-              case NpcCommands.Create:
-                res.send({
+                return reply({
                   type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
                 });
 
-                return psql()
-                  .then(characterData.create(subdata.options[0]?.value, channel.id, {
-                    traits: subdata.options[1]?.value,
-                    backstory: subdata.options[2]?.value
-                  }))
-                  .then(() =>
-                    CreateFollowupMessage(
-                      process.env.APP_ID!,
-                      token,
-                      `${user} has brought ${subdata.options[0]?.value} into the chat`
-                    )
-                  );
+              case CommandType.Npcs:
+                const subdata = data.options[0];
+                switch (subdata.name) {
+                  case NpcCommands.Create:
+                    psql()
+                      .then(characterData.create(subdata.options[0]?.value, channel.id, {
+                        traits: subdata.options[1]?.value,
+                        backstory: subdata.options[2]?.value
+                      }))
+                      .then(() =>
+                        CreateFollowupMessage(
+                          process.env.APP_ID!,
+                          token,
+                          `${user} has brought ${subdata.options[0]?.value} into the chat`
+                        )
+                      );
+                    return reply({
+                      type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
+                    });
 
-              case NpcCommands.Ask:
-                res.send({
+                  case NpcCommands.Ask:
+                    psql()
+                      .then(async () =>
+                        generateCompletion(
+                          db,
+                          subdata.options[1]?.value,
+                          channel.id,
+                          name,
+                          token,
+                        )
+                      );
+
+                    return reply({
+                      type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
+                    });
+
+                  case NpcCommands.List:
+                    psql()
+                      .then(characterData.list(channel.id))
+                      .then((c) =>
+                        CreateFollowupMessage(
+                          process.env.APP_ID!,
+                          token,
+                          `Here are the characters in this channel: \n${c.map(c => c.name).join("\n")}`
+                        )
+                      );
+
+                    return reply({
+                      type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
+                    });
+
+                  default: break;
+                };
+
+              case CommandType.CreateDirective:
+                psql()
+                  .then(directiveData.create(channel.id, data.options[0]?.value))
+                  .then(() => CreateFollowupMessage(process.env.APP_ID!, token, `Created a new directive`));
+
+                return reply({
                   type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
                 });
 
-                return psql()
-                  .then(async () =>
-                    generateCompletion(
-                      subdata.options[1]?.value,
-                      channel.id,
-                      await psql().then(characterData.get(subdata.options[0]?.value, channel.id)),
-                      token,
-                    )
-                  );
-
-              case NpcCommands.List:
-                res.send({
-                  type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
+              default:
+                return reply({
+                  type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+                  data: {
+                    content: `Unknown command ${JSON.stringify(data)}`
+                  }
                 });
-
-                return psql()
-                  .then(characterData.list(channel.id))
-                  .then((c) =>
-                    CreateFollowupMessage(
-                      process.env.APP_ID!,
-                      token,
-                      `Here are the characters in this channel: \n${c.join("\n")}`
-                    )
-                  );
-              default: break;
-            };
-
-          case CommandType.CreateDirective:
-            res.send({
-              type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
-            });
-
-            return psql()
-              .then(directiveData.create(channel.id, data.options[0]?.value))
-              .then(() => CreateFollowupMessage(process.env.APP_ID!, token, `Created a new directive`));
-
+            }
           default:
-            res.status(200).send({
-              type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: {
-                content: `Unknown command ${JSON.stringify(data)}`
-              }
-            });
             break;
         }
-      default:
-        break;
-    }
 
-    return res.status(400).send('Unknown interaction type');
-  } catch (err) {
-    console.error(err);
-    return res.sendStatus(500);
-  }
-});
-
-
-async function generateCompletion(prompt: string, channelId: string, character: Character, token: string): Promise<any> {
-
-  const client = await psql();
-  const directive = await directiveData.get(channelId)(client).catch(() => DEFAULT_SYS_MSG);
-  const memories = await memoryData.list(channelId)(client);
-  const others = (await characterData.list(channelId)(client)).filter(c => c.id !== character.id);
-  const story = memories.map(m => m.memory).join(' ');
-
-  const msg: CreateChatCompletionRequest = {
-    model: 'gpt-3.5-turbo-16k',
-    messages: [
-      {
-        content: directive,
-        role: 'system'
-      },
-      {
-        content: 'the characters in the story are:' + JSON.stringify(others),
-        role: 'assistant'
-      },
-      {
-        content: 'what has happened so far: ' + story,
-        role: 'assistant'
-      },
-      {
-        content: prompt,
-        role: 'user',
-        name: prompt === 'continue' ? undefined : character.name.replaceAll('.', '')
+        return reply({ msg: 'Unknown interaction type' }, 400);
+      } catch (err) {
+        console.error(err);
+        return reply(null, 500);
       }
-    ],
-    user: character.name
-  };
-
-  const response = await bot.createChatCompletion(msg)
-    .then(r => r.data?.choices[0]?.message?.content as string);
-
-  await psql().then(memoryData.create(channelId, response, {
-    perspectiveOf: character,
-    dateTime: new Date().toISOString(),
-  }));
-
-  const words = response.split(' ');
-
-  let size = 0;
-  let fragment: string[] = [];
-  for (let w of words) {
-    size += w.length;
-    if (size >= 256) {
-      await CreateFollowupMessage(process.env.APP_ID!, token, fragment.join(' '));
-      size = 0;
-      fragment = [];
     }
-    fragment.push(w);
-  }
-}
 
-app.listen(PORT, () => {
-  console.log('Listening on port', PORT);
+    return new Response('not found', { status: 404 });
+  }
 });
+
+console.log(`Listening on port ${server.port}`);
+

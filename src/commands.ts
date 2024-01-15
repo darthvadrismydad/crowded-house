@@ -1,4 +1,4 @@
-import { MessageComponent, MessageComponentTypes } from 'discord-interactions';
+import { MessageComponentTypes } from 'discord-interactions';
 export enum CommandType {
   Test = "test",
   Prompt = "prompt",
@@ -11,6 +11,7 @@ export enum NpcCommands {
   Create = "create",
   List = "list",
   Ask = "ask",
+  React = "react"
 }
 
 // command types for discord interactions

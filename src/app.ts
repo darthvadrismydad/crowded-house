@@ -1,10 +1,13 @@
 import 'dotenv/config';
 import express from 'express';
 import { InteractionType, InteractionResponseType, } from 'discord-interactions';
-import { CreateFollowupMessage, GetChannelMessages, VerifyDiscordRequest } from './utils';
+import { CreateFollowupMessage, VerifyDiscordRequest } from './utils';
 import { Configuration, CreateChatCompletionRequest, OpenAIApi } from 'openai';
 import { CommandType, NpcCommands } from './commands';
-import { createCharacter, createDirective, getCharacter, getDirective, listCharacters, psql } from './db';
+import { psql } from './db';
+import characterData, { Character } from './db/character';
+import directiveData from './db/directive';
+import memoryData from './db/memories';
 
 const app = express();
 const bot = new OpenAIApi(new Configuration({
@@ -24,11 +27,12 @@ app.get('/', async function(_, res) {
 app.post('/interactions', async function(req, res) {
   const { type, data, channel, token } = req.body;
   const user = req.body?.member?.user?.username ?? 'anon';
-  console.log('got interaction', type, data, channel, token, user);
+  console.log('got interaction', JSON.stringify(req.body));
 
   try {
     switch (type) {
       case InteractionType.PING:
+        console.log('sending PONG');
         return res.send({ type: InteractionResponseType.PONG });
       case InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE:
         switch (data.name.toLowerCase()) {
@@ -37,12 +41,12 @@ app.post('/interactions', async function(req, res) {
             switch (subdata.name) {
               case NpcCommands.Ask:
                 const characters = await psql()
-                  .then(listCharacters(channel.id))
-                  .catch(() => [{ name: 'failed', value: 'F' }]);
+                  .then(characterData.list(channel.id));
+
                 return res.send({
                   type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
                   data: {
-                    choices: characters.map(({ name }) => ({ name, value: name }))
+                    choices: characters.map(({ name, id }) => ({ name, value: id }))
                   }
                 });
             }
@@ -76,18 +80,14 @@ app.post('/interactions', async function(req, res) {
               type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
             });
 
-            const directive = await psql()
-              .then(getDirective(channel.id))
-              .catch(() => DEFAULT_SYS_MSG);
-
-            const characters = await psql().then(listCharacters(channel.id));
+            const character = await psql().then(characterData.getByName(user, channel.id));
 
             return generateCompletion(
-              text, 
-              channel.id, 
-              user, 
-              token, 
-              directive + '\n' + characters.map(c => `The character ${c.name} is represented by this JSON: ${JSON.stringify(c.state)}`).join('\n'));
+              text,
+              channel.id,
+              character,
+              token
+            );
 
           case CommandType.Npcs:
             const subdata = data.options[0];
@@ -98,7 +98,7 @@ app.post('/interactions', async function(req, res) {
                 });
 
                 return psql()
-                  .then(createCharacter(subdata.options[0]?.value, channel.id, {
+                  .then(characterData.create(subdata.options[0]?.value, channel.id, {
                     traits: subdata.options[1]?.value,
                     backstory: subdata.options[2]?.value
                   }))
@@ -116,20 +116,13 @@ app.post('/interactions', async function(req, res) {
                 });
 
                 return psql()
-                  .then(async client => {
-                    const npc = await getCharacter(subdata.options[0]?.value, channel.id)(client);
-                    const others = await listCharacters(channel.id)(client);
-                    return { npc, others };
-                  })
-                  .then(({ npc, others }) =>
+                  .then(async () =>
                     generateCompletion(
                       subdata.options[1]?.value,
                       channel.id,
-                      user,
+                      await psql().then(characterData.get(subdata.options[0]?.value, channel.id)),
                       token,
-                      `The reply format is [NAME]: [REPLY]. 
-                     You will reply as the character ${npc.name}, who is represented by this JSON: ${JSON.stringify(npc.state)}. 
-                     The other characters in this channel are: ${others}`)
+                    )
                   );
 
               case NpcCommands.List:
@@ -138,7 +131,7 @@ app.post('/interactions', async function(req, res) {
                 });
 
                 return psql()
-                  .then(listCharacters(channel.id))
+                  .then(characterData.list(channel.id))
                   .then((c) =>
                     CreateFollowupMessage(
                       process.env.APP_ID!,
@@ -155,7 +148,7 @@ app.post('/interactions', async function(req, res) {
             });
 
             return psql()
-              .then(createDirective(channel.id, data.options[0]?.value))
+              .then(directiveData.create(channel.id, data.options[0]?.value))
               .then(() => CreateFollowupMessage(process.env.APP_ID!, token, `Created a new directive`));
 
           default:
@@ -171,7 +164,7 @@ app.post('/interactions', async function(req, res) {
         break;
     }
 
-    return res.sendStatus(404).send('Unknown interaction type');
+    return res.status(400).send('Unknown interaction type');
   } catch (err) {
     console.error(err);
     return res.sendStatus(500);
@@ -179,38 +172,59 @@ app.post('/interactions', async function(req, res) {
 });
 
 
-async function generateCompletion(prompt: string, channelId: string, name: string, token: string, systemMsg: string): Promise<any> {
+async function generateCompletion(prompt: string, channelId: string, character: Character, token: string): Promise<any> {
 
-  const msgs: any[] = await GetChannelMessages(channelId);
-
-  let story = '';
-  let i = 0;
-  // only keeping the most recent 2000 characters
-  while (story.length < 2000 && i < msgs.length) {
-    // the most recent messages are the last in the array,
-    // so we need to order them in reverse and also stack em in reverse
-    story = msgs[i].content + ' ' + story;
-    i++;
-  }
+  const client = await psql();
+  const directive = await directiveData.get(channelId)(client).catch(() => DEFAULT_SYS_MSG);
+  const memories = await memoryData.list(channelId)(client);
+  const others = (await characterData.list(channelId)(client)).filter(c => c.id !== character.id);
+  const story = memories.map(m => m.memory).join(' ');
 
   const msg: CreateChatCompletionRequest = {
     model: 'gpt-3.5-turbo-16k',
     messages: [
-      { content: systemMsg, role: 'system' },
       {
-        content: 'this is the story that has occurred so far: [' + story + ']',
+        content: directive,
         role: 'system'
       },
-      { content: prompt, role: 'user', name: name.replaceAll('.', '') }
+      {
+        content: 'the characters in the story are:' + JSON.stringify(others),
+        role: 'assistant'
+      },
+      {
+        content: 'what has happened so far: ' + story,
+        role: 'assistant'
+      },
+      {
+        content: prompt,
+        role: 'user',
+        name: prompt === 'continue' ? undefined : character.name.replaceAll('.', '')
+      }
     ],
-    // TODO(luke): use threads to keep adding to the story over time?
-    max_tokens: 256,
-    user: name
+    user: character.name
   };
 
-  return bot.createChatCompletion(msg)
-    .then(r => r.data?.choices[0]?.message?.content as string)
-    .then((msg: string) => CreateFollowupMessage(process.env.APP_ID!, token, msg));
+  const response = await bot.createChatCompletion(msg)
+    .then(r => r.data?.choices[0]?.message?.content as string);
+
+  await psql().then(memoryData.create(channelId, response, {
+    perspectiveOf: character,
+    dateTime: new Date().toISOString(),
+  }));
+
+  const words = response.split(' ');
+
+  let size = 0;
+  let fragment: string[] = [];
+  for (let w of words) {
+    size += w.length;
+    if (size >= 256) {
+      await CreateFollowupMessage(process.env.APP_ID!, token, fragment.join(' '));
+      size = 0;
+      fragment = [];
+    }
+    fragment.push(w);
+  }
 }
 
 app.listen(PORT, () => {

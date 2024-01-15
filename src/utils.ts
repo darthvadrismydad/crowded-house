@@ -49,7 +49,7 @@ export async function InstallGlobalCommands() {
 }
 
 export async function GetChannelMessages(channelId: string): Promise<any> {
-  const endpoint = `channels/${channelId}/messages?limit=100`;
+  const endpoint = `channels/${channelId}/messages?limit=1000`;
   try {
     const res = await DiscordRequest(endpoint, { method: 'GET' });
     return await res.json();
@@ -77,4 +77,3 @@ export async function CreateFollowupMessage(appId: string, interactionToken: str
     console.error(err);
   }
 }
-

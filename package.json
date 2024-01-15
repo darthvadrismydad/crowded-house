@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun --watch src/app.ts",
+    "expose": "ngrok http 80",
     "start": "bun src/app.ts",
     "register": "bun src/register.ts",
     "build": "bun build --outdir=dist src/index.ts",

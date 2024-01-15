@@ -85,6 +85,8 @@ const server = Bun.serve({
                 // otherwise, we just want to say 'continue'
                 const text = data.options ? data.options[0]?.value : 'continue';
 
+                console.log('generating completion for', text, 'from user', user);
+
                 generateCompletion(
                   db,
                   text,

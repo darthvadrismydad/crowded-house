@@ -51,6 +51,8 @@ export async function generateCompletion(
   const response = await bot.createChatCompletion(msg)
     .then(r => r.data?.choices[0]?.message?.content as string);
 
+  console.log('response size:', response.length);
+
   await memoryData.create(channelId, response, {
     dateTime: new Date().toISOString(),
   })(client);
@@ -74,7 +76,7 @@ export async function generateAskResponse(
   const all = (await characterData.list(channelId)(client));
   const character = all.find(c => c.id === characterId);
   const others = all.find(c => c.id !== characterId);
-  const story = memories.map(m => m.memory).join(' ');
+  const story = memories.map(m => `${(m.facts?.perspectiveOf?.name + ': ') ?? ''}${m.memory}`).join('\n');
 
   const msg: CreateChatCompletionRequest = {
     model: 'gpt-3.5-turbo-16k',
@@ -90,7 +92,7 @@ export async function generateAskResponse(
         role: 'system'
       },
       {
-        content: `Question: ${question}`,
+        content: `Question by ${author}: ${question}`,
         role: 'user',
         name: author.replaceAll('.', '')
       }

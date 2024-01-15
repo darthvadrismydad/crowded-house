@@ -1,18 +1,17 @@
 import 'dotenv/config';
 import { InteractionType, InteractionResponseType } from 'discord-interactions';
 import { CreateFollowupMessage, VerifyDiscordRequest } from './utils';
-import { Configuration, OpenAIApi } from 'openai';
 import { CommandType, NpcCommands } from './commands';
 import { psql } from './db';
 import characterData from './db/character';
 import directiveData from './db/directive';
 import Bun from 'bun';
-import { generateCompletion } from './generate';
+import { generateAskResponse, generateCharacters, generateCompletion } from './generate';
 
 const PORT = process.env.PORT || 80;
 
 const verify = VerifyDiscordRequest(process.env.PUBLIC_KEY!);
-const reply = (obj: Record<string, any> | null, status?: number) => new Response(JSON.stringify(obj), { 
+const reply = (obj: Record<string, any> | null, status?: number) => new Response(JSON.stringify(obj), {
   status,
   headers: {
     'Content-Type': 'application/json'
@@ -46,25 +45,27 @@ const server = Bun.serve({
             switch (data.name.toLowerCase()) {
               case CommandType.Npcs:
                 const subdata = data.options[0];
+                console.log(subdata);
                 switch (subdata.name) {
                   case NpcCommands.Ask:
-                    const characters = await psql()
-                      .then(characterData.list(channel.id));
+                    const opts = subdata.options;
+                    const characters = await characterData.list(channel.id)(db);
 
                     return reply({
                       type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
                       data: {
-                        choices: characters.map(({ name, id }) => ({ name, value: id }))
+                        choices: characters.filter(c => !opts?.[0].value?.trim() || c.name.toLowerCase().includes(opts[0].value.toLowerCase())).map(({ name, id }) => ({
+                          name,
+                          value: id.toString()
+                        }))
                       }
                     });
                 }
+              default:
                 return reply({
                   type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
                   data: {
-                    choices: [{
-                      name: 'test',
-                      value: 'test'
-                    }]
+                    choices: []
                   }
                 });
             }
@@ -99,6 +100,12 @@ const server = Bun.serve({
               case CommandType.Npcs:
                 const subdata = data.options[0];
                 switch (subdata.name) {
+                  case NpcCommands.AutoGenerate:
+                    generateCharacters(db, channel.id, token);
+                    return reply({
+                      type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
+                    });
+
                   case NpcCommands.Create:
                     psql()
                       .then(characterData.create(subdata.options[0]?.value, channel.id, {
@@ -117,16 +124,14 @@ const server = Bun.serve({
                     });
 
                   case NpcCommands.Ask:
-                    psql()
-                      .then(async () =>
-                        generateCompletion(
-                          db,
-                          subdata.options[1]?.value,
-                          channel.id,
-                          name,
-                          token,
-                        )
-                      );
+                    generateAskResponse(
+                      db,
+                      subdata.options[1]?.value,
+                      channel.id,
+                      name,
+                      parseInt(subdata.options[0]?.value),
+                      token
+                    );
 
                     return reply({
                       type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE

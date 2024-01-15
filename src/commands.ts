@@ -11,7 +11,7 @@ export enum NpcCommands {
   Create = "create",
   List = "list",
   Ask = "ask",
-  React = "react"
+  AutoGenerate = "autogen",
 }
 
 // command types for discord interactions
@@ -116,8 +116,13 @@ export const Commands = new Map<CommandType, any>()
           ]
         },
         {
-          name: 'list',
+          name: NpcCommands.List,
           description: 'list all NPCs',
+          type: ApplicationCommandTypes.ChatInput
+        },
+        {
+          name: NpcCommands.AutoGenerate,
+          description: 'generates NPCs based on the story so far',
           type: ApplicationCommandTypes.ChatInput
         }
       ]

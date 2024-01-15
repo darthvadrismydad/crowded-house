@@ -60,6 +60,6 @@ export default {
         INSERT INTO memories (channel_id, memory, facts)
         VALUES ($1, $2, $3)
         RETURNING id
-      `).then(p => p.execute([channelId, memory, JSON.stringify(facts ?? {})]).one().then(r => r.id))
+      `).then(p => p.execute([channelId, memory, facts ?? {}]).one().then(r => r.id))
   },
 }

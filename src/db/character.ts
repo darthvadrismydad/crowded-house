@@ -65,5 +65,15 @@ export default {
         WHERE id = $2
       `)
       .then(p => p.execute([state, id]));
+  },
+
+  appendState(id: number, key: string, value: any): (c: Client) => Promise<any> {
+    return async c => c
+      .prepare(`
+        UPDATE characters
+        SET state->>$2 = $3
+        WHERE id = $1
+      `)
+      .then(p => p.execute([id, key, value]));
   }
 }

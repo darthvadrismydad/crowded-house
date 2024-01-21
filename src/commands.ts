@@ -12,6 +12,7 @@ export enum NpcCommands {
   List = "list",
   Ask = "ask",
   AutoGenerate = "autogen",
+  Mold = "mold",
 }
 
 // command types for discord interactions
@@ -112,6 +113,31 @@ export const Commands = new Map<CommandType, any>()
               required: true,
               type: MessageComponentTypes.STRING_SELECT,
               description: 'backstory of the NPC'
+            }
+          ]
+        },
+        {
+          name: NpcCommands.Mold,
+          description: 'mold an NPC',
+          type: ApplicationCommandTypes.ChatInput,
+          options: [
+            {
+              name: 'npc',
+              required: true,
+              type: MessageComponentTypes.STRING_SELECT,
+              description: 'name of the NPC',
+            },
+            {
+              name: 'attribute',
+              required: true,
+              type: MessageComponentTypes.STRING_SELECT,
+              description: 'the field to change',
+            },
+            {
+              name: 'value',
+              required: true,
+              type: MessageComponentTypes.STRING_SELECT,
+              description: 'the value to set the field to'
             }
           ]
         },

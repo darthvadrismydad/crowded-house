@@ -7,6 +7,7 @@ import characterData from './db/character';
 import directiveData from './db/directive';
 import Bun from 'bun';
 import { generateAskResponse, generateCharacters, generateCompletion } from './generate';
+import { watch } from 'fs';
 
 const PORT = process.env.PORT || 80;
 
@@ -48,6 +49,7 @@ const server = Bun.serve({
                 console.log(subdata);
                 switch (subdata.name) {
                   case NpcCommands.Ask:
+                  case NpcCommands.Mold:
                     const opts = subdata.options;
                     const characters = await characterData.list(channel.id)(db);
 
@@ -147,6 +149,24 @@ const server = Bun.serve({
                           process.env.APP_ID!,
                           token,
                           `Here are the characters in this channel: \n${c.map(c => c.name).join("\n")}`
+                        )
+                      );
+
+                    return reply({
+                      type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
+                    });
+
+                  case NpcCommands.Mold:
+                    const id = subdata.options[0]?.value;
+                    const attribute = subdata.options[1]?.value;
+                    const value = subdata.options[2]?.value;
+                    psql()
+                      .then(characterData.appendState(id, attribute, value))
+                      .then(() =>
+                        CreateFollowupMessage(
+                          process.env.APP_ID!,
+                          token,
+                          `molded character to have attribute ${attribute} set to '${value}'`
                         )
                       );
 

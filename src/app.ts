@@ -7,7 +7,6 @@ import characterData from './db/character';
 import directiveData from './db/directive';
 import Bun from 'bun';
 import { generateAskResponse, generateCharacters, generateCompletion } from './generate';
-import { watch } from 'fs';
 
 const PORT = process.env.PORT || 80;
 

@@ -124,6 +124,7 @@ export const Commands = new Map<CommandType, any>()
             {
               name: 'npc',
               required: true,
+              autocomplete: true,
               type: MessageComponentTypes.STRING_SELECT,
               description: 'name of the NPC',
             },

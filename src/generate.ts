@@ -29,6 +29,17 @@ export async function generateCompletion(
     temperature: 0.37,
     messages: [
       {
+        content: `
+          you are a helpful storyteller, working with player characters to tell a story.
+          this is a never-ending saga. because there is no end, do not end responses with happily ever after verbage.
+          always leave room for the player characters to continue the story!
+          any time a new user interacts with you via the prompt, 
+          you will treat them as a player character in the story. 
+          if they do not already exist in the story, use their authored name and
+          find a way to weave them into the story, using their prompt to aid in that task.`,
+        role: 'system',
+      },
+      {
         content: directive,
         role: 'system'
       },
@@ -94,7 +105,7 @@ export async function generateAskResponse(
         role: 'system'
       },
       {
-        content: `Question by ${author}: ${question}`,
+        content: `${author} asks: "${question}"`,
         role: 'user',
         name: author.replaceAll('.', '')
       }

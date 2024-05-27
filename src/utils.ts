@@ -1,4 +1,4 @@
-import { verifyKey } from 'discord-interactions';
+import { ChannelTypes, verifyKey } from 'discord-interactions';
 import { Commands } from './commands';
 
 export function VerifyDiscordRequest(clientKey: string) {
@@ -59,6 +59,23 @@ export async function GetChannel(channelId: string): Promise<any> {
   const endpoint = `channels/${channelId}`;
   try {
     const res = await DiscordRequest(endpoint, { method: 'GET' });
+    return await res.json();
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+export async function CreateChannel(serverId: string, channelId: string, topic?: string): Promise<any> {
+  const endpoint = `guilds/${serverId}/channels`;
+  try {
+    const res = await DiscordRequest(endpoint, {
+      method: 'POST',
+      body: {
+        name: channelId,
+        type: ChannelTypes.GUILD_TEXT,
+        topic
+      }
+    });
     return await res.json();
   } catch (err) {
     console.error(err);

@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { InteractionType, InteractionResponseType } from 'discord-interactions';
-import { CreateFollowupMessage, VerifyDiscordRequest } from './utils';
+import { CreateChannel, CreateFollowupMessage, VerifyDiscordRequest } from './utils';
 import { CommandType, NpcCommands } from './commands';
 import { psql } from './db';
 import characterData from './db/character';
@@ -190,6 +190,22 @@ const server = Bun.serve({
                   type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
                   data: {
                     content: `Unknown command ${JSON.stringify(data)}`
+                  }
+                });
+              case CommandType.Fork:
+
+                if(user !== 'darthvadrismydad') {
+                  throw new Error('someone else tried to use fork!');
+                }
+
+                const forkName: string = data.options[0].value!;
+                const description: string = data.options[1]?.value!;
+                CreateChannel(process.env.SERVER_ID!, forkName, description);
+
+                return reply({
+                  type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+                  data: {
+                    content: 'created new channel ' + forkName
                   }
                 });
             }

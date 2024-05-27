@@ -5,6 +5,7 @@ export enum CommandType {
   Continue = "continue",
   CreateDirective = "direct",
   Npcs = "npcs",
+  Fork = "fork"
 }
 
 export enum NpcCommands {
@@ -154,4 +155,21 @@ export const Commands = new Map<CommandType, any>()
         }
       ]
     }
-  );
+  )
+  .set(CommandType.Fork, {
+    description: 'spin off a new story where an alternate timeline can take place!',
+    type: ApplicationCommandTypes.ChatInput,
+    options: [
+      {
+        name: 'name',
+        required: true,
+        type: MessageComponentTypes.STRING_SELECT,
+        description: 'name of the new alternate reality',
+      },
+      {
+        name: 'description',
+        type: MessageComponentTypes.STRING_SELECT,
+        description: 'describe the new alternate reality',
+      }
+    ]
+  });

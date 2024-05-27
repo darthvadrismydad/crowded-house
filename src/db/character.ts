@@ -71,7 +71,7 @@ export default {
     return async c => c
       .prepare(`
         UPDATE characters
-        SET state->>$2 = $3
+        SET state = (jsonb_set(state::jsonb, ARRAY[$2], $3))::text
         WHERE id = $1
       `)
       .then(p => p.execute([id, key, value]));

@@ -25,7 +25,8 @@ export async function generateCompletion(
   const story = memories.map(m => m.memory).join(' ');
 
   const msg: CreateChatCompletionRequest = {
-    model: 'gpt-3.5-turbo-16k',
+    model: 'gpt-4o',
+    temperature: 0.37,
     messages: [
       {
         content: directive,
@@ -79,7 +80,8 @@ export async function generateAskResponse(
   const story = memories.map(m => `${(m.facts?.perspectiveOf?.name + ': ') ?? ''}${m.memory}`).join('\n');
 
   const msg: CreateChatCompletionRequest = {
-    model: 'gpt-3.5-turbo-16k',
+    model: 'gpt-4o',
+    temperature: 0.37,
     messages: [
       {
         content: `
@@ -126,7 +128,8 @@ export async function generateCharacters(
   const story = memories.map(m => m.memory).join(' ');
 
   const msg: CreateChatCompletionRequest = {
-    model: 'gpt-3.5-turbo-16k',
+    model: 'gpt-4o',
+    temperature: 0.37,
     messages: [
       {
         content: directive,

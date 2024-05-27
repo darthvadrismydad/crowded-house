@@ -200,13 +200,12 @@ const server = Bun.serve({
 
                 const forkName: string = data.options[0].value!;
                 const description: string = data.options[1]?.value!;
-                CreateChannel(process.env.SERVER_ID!, forkName, description);
+                CreateChannel(process.env.SERVER_ID!, forkName, description).then(() => 
+                  CreateFollowupMessage(process.env.APP_ID!, token, `created channel ${forkName}`)
+                );
 
                 return reply({
-                  type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-                  data: {
-                    content: 'created new channel ' + forkName
-                  }
+                  type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
                 });
             }
           default:

@@ -9,7 +9,8 @@
     "start": "bun src/app.ts",
     "register": "bun src/register.ts",
     "build": "bun build --outdir=dist src/index.ts",
-    "dev:bundle": "zip -r crowded.zip Dockerfile bun.lockb package.json src/ tsconfig.json .env"
+    "dev:bundle": "zip -r crowded.zip Dockerfile bun.lockb package.json src/ tsconfig.json .env",
+    "dev:init": "bun run src/db/init.ts"
   },
   "devDependencies": {
     "bun-types": "latest"

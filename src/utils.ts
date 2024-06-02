@@ -91,3 +91,11 @@ export async function CreateFollowupMessage(appId: string, interactionToken: str
     console.error(err);
   }
 }
+
+export function stringify(content: any) {
+  return JSON.stringify(content, (_, v) => {
+    if(typeof v === 'bigint') {
+      return v.toString()
+    } else return v;
+  });
+}

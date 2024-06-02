@@ -5,6 +5,7 @@ import { CommandType, NpcCommands } from './commands';
 import { psql } from './db';
 import characterData from './db/character';
 import directiveData from './db/directive';
+import timelineData from './db/timelines';
 import Bun from 'bun';
 import { generateAskResponse, generateCharacters, generateCompletion } from './generate';
 
@@ -45,7 +46,6 @@ const server = Bun.serve({
             switch (data.name.toLowerCase()) {
               case CommandType.Npcs:
                 const subdata = data.options[0];
-                console.log(subdata);
                 switch (subdata.name) {
                   case NpcCommands.Ask:
                   case NpcCommands.Mold:
@@ -86,13 +86,11 @@ const server = Bun.serve({
                 // otherwise, we just want to say 'continue'
                 const text = data.options ? data.options[0]?.value : 'continue';
 
-                console.log('generating completion for', text, 'from user', user);
-
                 generateCompletion(
                   db,
                   text,
                   channel.id,
-                  name,
+                  user,
                   token
                 );
 
@@ -131,7 +129,7 @@ const server = Bun.serve({
                       db,
                       subdata.options[1]?.value,
                       channel.id,
-                      name,
+                      user,
                       parseInt(subdata.options[0]?.value),
                       token
                     );
@@ -200,9 +198,10 @@ const server = Bun.serve({
 
                 const forkName: string = data.options[0].value!;
                 const description: string = data.options[1]?.value!;
-                CreateChannel(process.env.SERVER_ID!, forkName, description).then(() => 
-                  CreateFollowupMessage(process.env.APP_ID!, token, `created channel ${forkName}`)
-                );
+                CreateChannel(process.env.SERVER_ID!, forkName, description).then(async (chan) => {
+                  await psql().then(timelineData.create(chan.id, channel.id));
+                  await CreateFollowupMessage(process.env.APP_ID!, token, `created channel ${forkName}`)
+                });
 
                 return reply({
                   type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE

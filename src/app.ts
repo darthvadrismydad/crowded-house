@@ -55,7 +55,11 @@ const server = Bun.serve({
                     return reply({
                       type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
                       data: {
-                        choices: characters.filter(c => c.isNpc && (!opts?.[0].value?.trim() || c.name.toLowerCase().includes(opts[0].value.toLowerCase()))).map(({ name, id }) => ({
+                        choices: characters.filter(c =>
+                          c.is_npc &&
+                          (!opts?.[0].value?.trim()
+                            || c.name.toLowerCase().includes(opts[0].value.toLowerCase()))
+                        ).map(({ name, id }) => ({
                           name,
                           value: id.toString()
                         }))
@@ -192,7 +196,7 @@ const server = Bun.serve({
                 });
               case CommandType.Fork:
 
-                if(user !== 'darthvadrismydad') {
+                if (user !== 'darthvadrismydad') {
                   throw new Error('someone else tried to use fork!');
                 }
 

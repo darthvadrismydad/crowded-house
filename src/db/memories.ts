@@ -2,10 +2,10 @@ import { Client } from 'ts-postgres';
 
 export type Memory = {
   id: number,
-  channelId: string,
+  channel_id: string,
   memory: string,
-  createdAt: Date,
-  relatedId: string
+  created_at: Date,
+  related_id: string
 }
 
 export default {

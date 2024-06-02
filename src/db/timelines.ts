@@ -2,8 +2,8 @@ import { Client } from 'ts-postgres';
 
 export type Timeline = {
   id: number
-  parentId: number
-  createdAt: Date
+  parent_id: number
+  created_at: Date
 }
 
 export default {
@@ -31,6 +31,6 @@ export default {
       WHERE id = $1
     `)
       .then(p => p.execute([channelId]).one())
-      .then(r => r.parentId)
+      .then(r => r.parent_id)
   }
 }

@@ -3,10 +3,10 @@ import { Client } from 'ts-postgres';
 export type Character = {
   id: number
   name: string
-  channelId: number
-  createdAt: Date
+  channel_id: number
+  created_at: Date
   state: any
-  isNpc: boolean
+  is_npc: boolean
 }
 
 export default {

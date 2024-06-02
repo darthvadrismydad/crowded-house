@@ -194,15 +194,14 @@ export async function generateCharacters(
 
   const result = JSON.parse(array);
 
-  for (const character of (result.characters ?? result)) {
-    if (!(await characterData.getByName(character.name, channelId)(client).then(() => true).catch(() => false))) {
-      await characterData.create(character.name, channelId, {
-        traits: character.traits,
-        relationships: character.relationships
-      })(client);
-    }
-    for (const memory of character.memories) {
-      await memoryData.create(channelId, memory)(client);
+  for (const { name, ...state } of (result.characters ?? result)) {
+    if (!(await characterData.getByName(name, channelId)(client).then(() => true).catch(() => false))) {
+      await characterData.create(
+        name,
+        channelId, 
+        state,
+        true
+      )(client);
     }
   }
 

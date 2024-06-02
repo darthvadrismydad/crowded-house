@@ -1,11 +1,12 @@
 import { Client } from 'ts-postgres';
 
-export interface Character {
-  id: number;
-  name: string;
-  channelId: number;
-  createdAt: Date;
-  state: any;
+export type Character = {
+  id: number
+  name: string
+  channelId: number
+  createdAt: Date
+  state: any
+  isNpc: boolean
 }
 
 export default {
@@ -17,15 +18,16 @@ export default {
         channel_id BIGINT NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         state JSONB NOT NULL
+        is_npc BOOLEAN NOT NULL DEFAULT FALSE
       );
     `);
   },
 
-  create(name: string, channelId: number, state: any): (c: Client) => Promise<any> {
+  create(name: string, channelId: number, state: any, isNpc: boolean = false): (c: Client) => Promise<any> {
     return async c => c.prepare<Character>(`
-    INSERT INTO characters (name, channel_id, state)
-    VALUES ($1, $2, $3::jsonb);
-  `).then(p => p.execute([name, channelId, state]));
+    INSERT INTO characters (name, channel_id, state, is_npc)
+    VALUES ($1, $2, $3::jsonb, $4);
+  `).then(p => p.execute([name, channelId, state, isNpc]));
   },
 
   get(id: number, channelId: number): (c: Client) => Promise<Character> {

@@ -55,7 +55,7 @@ const server = Bun.serve({
                     return reply({
                       type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
                       data: {
-                        choices: characters.filter(c => !opts?.[0].value?.trim() || c.name.toLowerCase().includes(opts[0].value.toLowerCase())).map(({ name, id }) => ({
+                        choices: characters.filter(c => c.isNpc && (!opts?.[0].value?.trim() || c.name.toLowerCase().includes(opts[0].value.toLowerCase()))).map(({ name, id }) => ({
                           name,
                           value: id.toString()
                         }))
@@ -112,7 +112,7 @@ const server = Bun.serve({
                       .then(characterData.create(subdata.options[0]?.value, channel.id, {
                         traits: subdata.options[1]?.value,
                         backstory: subdata.options[2]?.value
-                      }))
+                      }, true))
                       .then(() =>
                         CreateFollowupMessage(
                           process.env.APP_ID!,

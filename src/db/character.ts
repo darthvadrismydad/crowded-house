@@ -6,7 +6,7 @@ export type Character = {
   channelId: number
   createdAt: Date
   state: any
-  isNpc: boolean
+  is_npc: boolean
 }
 
 export default {

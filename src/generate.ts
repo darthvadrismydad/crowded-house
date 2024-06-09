@@ -13,9 +13,8 @@ export async function generateCompletion(
   client: Client,
   prompt: string,
   channelId: number,
-  author: string,
-  token: string
-): Promise<any> {
+  author: string
+): Promise<string> {
   const bot = new OpenAIApi(new Configuration({
     apiKey: process.env.OPENAI_API_KEY!
   }));
@@ -87,7 +86,7 @@ export async function generateCompletion(
     await characterData.create(author, channelId, {})(client);
   }
 
-  await splitUpFollowup(token, response);
+  return response;
 }
 
 export async function generateAskResponse(
@@ -95,8 +94,7 @@ export async function generateAskResponse(
   question: string,
   channelId: number,
   author: string,
-  characterId: number,
-  token: string
+  characterId: number
 ): Promise<any> {
   const bot = new OpenAIApi(new Configuration({
     apiKey: process.env.OPENAI_API_KEY!
@@ -140,13 +138,12 @@ export async function generateAskResponse(
   // TODO: ensure author actually exists first
   await memoryData.create(channelId, question, characterId, authorData!.id)(client);
 
-  await splitUpFollowup(token, response);
+  return response;
 }
 
 export async function generateCharacters(
   client: Client,
-  channelId: number,
-  token: string
+  channelId: number
 ): Promise<any> {
   const bot = new OpenAIApi(new Configuration({
     apiKey: process.env.OPENAI_API_KEY!
@@ -205,34 +202,5 @@ export async function generateCharacters(
     }
   }
 
-  await CreateFollowupMessage(process.env.APP_ID!, token, 'created ' + result.length + ' characters');
-}
-
-async function splitUpFollowup(token: string, response: string) {
-  if (response.length < 2000) {
-    await CreateFollowupMessage(process.env.APP_ID!, token, response);
-    return;
-  }
-
-  const words = response.split(' ');
-  let size = 0;
-  let fragment: string[] = [];
-  for (let i = 0; i < words.length; i++) {
-    const w = words[i];
-    if ((fragment.length + size + w.length) >= 2000) {
-      const content = fragment.join(' ');
-      console.log('sending this many chars:', content.length);
-      await CreateFollowupMessage(process.env.APP_ID!, token, content);
-      size = 0;
-      fragment = [];
-    }
-    size += w.length;
-    fragment.push(w);
-  }
-
-  if (fragment.length > 0) {
-    const content = fragment.join(' ');
-    console.log('sending this many chars:', content.length);
-    await CreateFollowupMessage(process.env.APP_ID!, token, content);
-  }
+  return result.length;
 }

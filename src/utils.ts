@@ -65,6 +65,19 @@ export async function GetChannel(channelId: string): Promise<any> {
   }
 }
 
+export async function CreateMessage(channelId: string, content: string): Promise<any> {
+  const endpoint = `channels/${channelId}/messages`;
+  try {
+    const res = await DiscordRequest(endpoint, {
+      method: 'POST',
+      body: { content }
+    });
+    return await res.json();
+  } catch (err) {
+    console.error(err);
+  }
+}
+
 export async function CreateChannel(serverId: string, channelId: string, topic?: string): Promise<any> {
   const endpoint = `guilds/${serverId}/channels`;
   try {
@@ -82,7 +95,7 @@ export async function CreateChannel(serverId: string, channelId: string, topic?:
   }
 }
 
-export async function CreateFollowupMessage(appId: string, interactionToken: string, content: string) {
+export async function CreateFollowupMessage(interactionToken: string, appId: string, content: string) {
   const endpoint = `webhooks/${appId}/${interactionToken}`;
   try {
     const res = await DiscordRequest(endpoint, { method: 'POST', body: { content } });
@@ -94,8 +107,37 @@ export async function CreateFollowupMessage(appId: string, interactionToken: str
 
 export function stringify(content: any) {
   return JSON.stringify(content, (_, v) => {
-    if(typeof v === 'bigint') {
+    if (typeof v === 'bigint') {
       return v.toString()
     } else return v;
   });
+}
+
+export async function splitUpFollowup(response: string, messenger: (msg: string) => Promise<void>) {
+  if (response.length < 2000) {
+    await messenger(response);
+    return;
+  }
+
+  const words = response.split(' ');
+  let size = 0;
+  let fragment: string[] = [];
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    if ((fragment.length + size + w.length) >= 2000) {
+      const content = fragment.join(' ');
+      console.log('sending this many chars:', content.length);
+      await messenger(content);
+      size = 0;
+      fragment = [];
+    }
+    size += w.length;
+    fragment.push(w);
+  }
+
+  if (fragment.length > 0) {
+    const content = fragment.join(' ');
+    console.log('sending this many chars:', content.length);
+    await messenger(content);
+  }
 }

@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { InteractionType, InteractionResponseType } from 'discord-interactions';
-import { CreateChannel, CreateFollowupMessage, VerifyDiscordRequest } from './utils';
+import { CreateChannel, CreateFollowupMessage, VerifyDiscordRequest, splitUpFollowup } from './utils';
 import { CommandType, NpcCommands } from './commands';
 import { psql } from './db';
 import characterData from './db/character';
@@ -94,9 +94,10 @@ const server = Bun.serve({
                   db,
                   text,
                   channel.id,
-                  user,
-                  token
-                );
+                  user
+                ).then(response => {
+                  splitUpFollowup(response, CreateFollowupMessage.bind(null, token, process.env.APP_ID!));
+                });
 
                 return reply({
                   type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
@@ -106,7 +107,8 @@ const server = Bun.serve({
                 const subdata = data.options[0];
                 switch (subdata.name) {
                   case NpcCommands.AutoGenerate:
-                    generateCharacters(db, channel.id, token);
+                    generateCharacters(db, channel.id)
+                      .then(result => CreateFollowupMessage(token, process.env.APP_ID!, 'created ' + result.length + ' characters'));
                     return reply({
                       type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
                     });
@@ -119,8 +121,8 @@ const server = Bun.serve({
                       }, true))
                       .then(() =>
                         CreateFollowupMessage(
-                          process.env.APP_ID!,
                           token,
+                          process.env.APP_ID!,
                           `${user} has brought ${subdata.options[0]?.value} into the chat`
                         )
                       );
@@ -134,9 +136,8 @@ const server = Bun.serve({
                       subdata.options[1]?.value,
                       channel.id,
                       user,
-                      parseInt(subdata.options[0]?.value),
-                      token
-                    );
+                      parseInt(subdata.options[0]?.value)
+                    ).then(response => splitUpFollowup(response, CreateFollowupMessage.bind(null, token, process.env.APP_ID!)));
 
                     return reply({
                       type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
@@ -147,8 +148,8 @@ const server = Bun.serve({
                       .then(characterData.list(channel.id))
                       .then((c) =>
                         CreateFollowupMessage(
-                          process.env.APP_ID!,
                           token,
+                          process.env.APP_ID!,
                           `Here are the characters in this channel: \n${c.map(c => c.name).join("\n")}`
                         )
                       );
@@ -204,7 +205,7 @@ const server = Bun.serve({
                 const description: string = data.options[1]?.value!;
                 CreateChannel(process.env.SERVER_ID!, forkName, description).then(async (chan) => {
                   await psql().then(timelineData.create(chan.id, channel.id));
-                  await CreateFollowupMessage(process.env.APP_ID!, token, `created channel ${forkName}`)
+                  await CreateFollowupMessage(token, process.env.APP_ID!, `created channel ${forkName}`)
                 });
 
                 return reply({

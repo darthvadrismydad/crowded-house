@@ -76,12 +76,11 @@ connectToGateway(async msg => {
 
         const prompt = msg.d.content;
         const channel = msg.d.channel_id as any;
-        const db = await psql();
 
-        const chars = await character.list(channel)(db)
+        const chars = await psql(character.list(channel))
         const involved = chars.filter(c => prompt.includes(c.name));
 
-        const response = await generateCompletion(db, prompt, channel, msg.d.author.username);
+        const response = await psql(generateCompletion(prompt, channel, msg.d.author.username));
         await splitUpFollowup(response, CreateMessage.bind(null, channel));
     }
 });
